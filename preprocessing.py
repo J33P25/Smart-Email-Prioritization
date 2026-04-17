@@ -1,17 +1,26 @@
-import kagglehub
-import pandas as pd
-from Cleaner import Cleaner
-from email import message_from_string
 import os
-import re
+import pandas as pd
+import nltk
+from nltk.tokenize import word_tokenize
+from email import message_from_string
+from Cleaner import Cleaner
+import kagglehub
 
-PATH = kagglehub.dataset_download('wcukierski/enron-email-dataset')
+
+nltk.download('punkt',     quiet=True)
+nltk.download('punkt_tab', quiet=True)
+nltk.download('stopwords', quiet=True)
 
 class Preprocessing:
-    def __init__(self):
-        self.file_path = os.path.join(PATH,"emails.csv")
-        self.df = pd.read_csv(self.file_path)
-        self.df = self.df.head(1000)
+    def __init__(self,sample_size=1000):
+        path = kagglehub.dataset_download('wcukierski/enron-email-dataset')
+        file_path = os.path.join(path, "emails.csv")
+ 
+        self.df = pd.read_csv(file_path)
+        if sample_size is not None:
+            self.df = self.df.head(sample_size)
+ 
+        self._cleaner = Cleaner()
 
     def parse_email_message(self,message):
         try:
@@ -66,11 +75,19 @@ class Preprocessing:
         print(self.df.head())
 
     def apply_cleaning(self):
-        cleaner = Cleaner()
-        self.df["clean_body"] = self.df["body"].apply(cleaner.clean)
-        print(self.df["clean_body"][1])
+        self.df["clean_body_summary"] = self.df["body"].apply(
+            self._cleaner.clean_for_summarization
+        )
+        self.df["clean_body_classify"] = self.df["body"].apply(
+            self._cleaner.clean_for_classification
+        )
 
-p = Preprocessing()
-p.apply_parse()
-p.view_email()
-p.apply_cleaning()
+    def tokenization(self):
+
+        self.df['Tokens'] = self.df['clean_body'].apply(lambda x: word_tokenize(x))
+
+if __name__ == "__main__":
+    p = Preprocessing(sample_size=1000)
+    p.apply_parse()
+    p.view_email()
+    p.apply_cleaning()
