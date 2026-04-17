@@ -19,13 +19,14 @@ class Cleaner:
     def remove_special_chars(self, text):
         return re.sub(r'[^a-zA-Z0-9\s]', '', text)
 
-    def clean(self, text):
-        if not isinstance(text, str):
-            return ""
-
+    def clean_for_summarization(self, text): # minimal cleaning for summarization
         text = self.remove_replies(text)
         text = self.remove_signature(text)
-        text = self.normalize_text(text)
-        text = self.remove_special_chars(text)
+        text = re.sub(r'\s+', ' ', text).strip()  # only whitespace normalization
+        return text
 
+    def clean_for_classification(self, text): # more aggressive cleaning for classification
+        text = self.clean_for_summarization(text)
+        text = text.lower()
+        text = self.remove_special_chars(text)
         return text
