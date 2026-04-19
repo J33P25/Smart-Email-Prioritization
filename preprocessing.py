@@ -2,6 +2,8 @@ import os
 import pandas as pd
 import nltk
 from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
 from email import message_from_string
 from Cleaner import Cleaner
 import kagglehub
@@ -10,10 +12,11 @@ import kagglehub
 nltk.download('punkt',     quiet=True)
 nltk.download('punkt_tab', quiet=True)
 nltk.download('stopwords', quiet=True)
+nltk.download('wordnet',   quiet=True)
 
 pd.set_option('display.max_rows', None)        # show all rows
-pd.set_option('display.max_colwidth', None)    # show full text in cells
-pd.set_option('display.width', None)           # avoid line wrapping
+pd.set_option('display.max_colwidth', 250)    # show full text in cells
+pd.set_option('display.width', None)          # auto-detect terminal width
 
 class Preprocessing:
     def __init__(self,sample_size=1000):
@@ -75,8 +78,8 @@ class Preprocessing:
 
         self.df = pd.concat([self.df, parsed_df], axis=1)
 
-    def view_email(self):
-        print(self.df.head())
+    def view_email(self,index=0):
+        print(self.df.iloc[index])
 
     def apply_cleaning(self):
         self.df["clean_body_summary"] = self.df["body"].apply(self._cleaner.clean_for_summarization)
@@ -87,7 +90,7 @@ class Preprocessing:
         print(f"[Cleaning] Dropped {before - len(self.df)} unusable rows.")
 
     def tokenization(self):
-        stop_words = set(nltk.stopwords.words('english'))
+        stop_words = set(stopwords.words('english'))
  
         def _tokenize(text):
             if not isinstance(text, str) or not text.strip():
@@ -102,9 +105,23 @@ class Preprocessing:
         if empty_tokens:
             print(f"[Tokenization] Warning: {empty_tokens} rows produced 0 tokens.")
 
+    def lemmatization(self):
+        lemmatizer = WordNetLemmatizer()
+        
+        def _lemmatize(tokens):
+            return [lemmatizer.lemmatize(t) for t in tokens]
+        self.df["Lemmatized_Tokens"] = self.df["tokens"].apply(_lemmatize)
+
+    def helper_sample_tokens(self):
+        print(f"[Tokenization] Sample tokens from first email: {self.df['tokens'].iloc[0]}")
+        print(f"[Lemmatization] Sample lemmatized tokens from first email: {self.df['Lemmatized_Tokens'].iloc[0]}")
+
+
 if __name__ == "__main__":
     p = Preprocessing(sample_size=1000)
     p.apply_parse()
-    p.view_email()
+    p.view_email(1)
     p.apply_cleaning()
     p.tokenization()
+    p.lemmatization()
+    p.helper_sample_tokens()
