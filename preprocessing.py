@@ -11,6 +11,10 @@ nltk.download('punkt',     quiet=True)
 nltk.download('punkt_tab', quiet=True)
 nltk.download('stopwords', quiet=True)
 
+pd.set_option('display.max_rows', None)        # show all rows
+pd.set_option('display.max_colwidth', None)    # show full text in cells
+pd.set_option('display.width', None)           # avoid line wrapping
+
 class Preprocessing:
     def __init__(self,sample_size=1000):
         path = kagglehub.dataset_download('wcukierski/enron-email-dataset')
@@ -75,19 +79,32 @@ class Preprocessing:
         print(self.df.head())
 
     def apply_cleaning(self):
-        self.df["clean_body_summary"] = self.df["body"].apply(
-            self._cleaner.clean_for_summarization
-        )
-        self.df["clean_body_classify"] = self.df["body"].apply(
-            self._cleaner.clean_for_classification
-        )
+        self.df["clean_body_summary"] = self.df["body"].apply(self._cleaner.clean_for_summarization)
+        self.df["clean_body_classify"] = self.df["body"].apply(self._cleaner.clean_for_classification)
+        
+        before = len(self.df)
+        self.df = self.df[self.df["clean_body_classify"].str.strip() != ""].reset_index(drop=True)
+        print(f"[Cleaning] Dropped {before - len(self.df)} unusable rows.")
 
     def tokenization(self):
-
-        self.df['Tokens'] = self.df['clean_body'].apply(lambda x: word_tokenize(x))
+        stop_words = set(nltk.stopwords.words('english'))
+ 
+        def _tokenize(text):
+            if not isinstance(text, str) or not text.strip():
+                return []
+            tokens = word_tokenize(text)
+            return [t for t in tokens if t not in stop_words]
+ 
+        self.df["tokens"] = self.df["clean_body_classify"].apply(_tokenize)
+ 
+        # Report any rows that tokenized to nothing (edge cases)
+        empty_tokens = (self.df["tokens"].apply(len) == 0).sum()
+        if empty_tokens:
+            print(f"[Tokenization] Warning: {empty_tokens} rows produced 0 tokens.")
 
 if __name__ == "__main__":
     p = Preprocessing(sample_size=1000)
     p.apply_parse()
     p.view_email()
     p.apply_cleaning()
+    p.tokenization()
